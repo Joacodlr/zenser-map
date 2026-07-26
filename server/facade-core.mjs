@@ -1,7 +1,8 @@
 // Shared Street View facade logic, used by BOTH the Vite dev proxy
 // (vite.config.ts) and the production serverless function (api/facade.js).
 // Lives in the MAP app — not deanna2u — so the Google key stays in this app's
-// environment and Deanna's code is never touched.
+// environment and Deanna's code is never touched. Kept OUTSIDE /api so Vercel
+// doesn't try to treat it as its own endpoint.
 //
 // The metadata request is free; we only fetch the (paid) image when imagery
 // exists, so a store never ends up with a broken/blank facade.

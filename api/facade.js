@@ -1,10 +1,10 @@
 // Production serverless function for the building facade (Google Street View).
-// On Vercel/Netlify-style hosts, a file in /api becomes GET /api/facade.
-// Serves the image (or a {available} JSON for ?meta=1) with the Google key kept
-// server-side. Deanna stores a URL pointing here; the key never reaches a browser.
+// On Vercel, a file in /api becomes GET /api/facade. Serves the image (or a
+// {available} JSON for ?meta=1) with the Google key kept server-side. Deanna
+// stores a URL pointing here; the key never reaches a browser. deanna2u unchanged.
 //
 // Requires GOOGLE_MAPS_API_KEY in this app's deployment environment.
-import { facadeCore } from "./_facade-core.mjs";
+import { facadeCore } from "../server/facade-core.mjs";
 
 export default async function handler(req, res) {
   const u = new URL(req.url, "http://localhost");
@@ -18,8 +18,7 @@ export default async function handler(req, res) {
   });
 
   res.statusCode = r.status;
-  // <img> loads are cross-origin (Deanna renders this); harmless to allow.
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", "*"); // <img> loads cross-origin on Deanna
   if (r.body) {
     res.setHeader("Content-Type", r.contentType);
     res.setHeader("Cache-Control", "public, max-age=2592000"); // 30d — imagery is static

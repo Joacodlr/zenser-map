@@ -184,6 +184,38 @@ GOOGLE_MAPS_API_KEY=       # Maps Platform con "Street View Static API" activada
 VITE_MAP_PUBLIC_BASE=      # opcional; por defecto el origen actual (window.origin)
 ```
 
+## Despliegue en Vercel
+
+Los proxies de `npm run dev` (middlewares de Vite) **no existen** en un build
+estático. Por eso `/api/*` está portado a **funciones serverless** reales en `api/`,
+con la lógica compartida en `server/` (misma en dev y en prod):
+
+| Ruta en prod | Función | Necesita |
+|---|---|---|
+| `/api/facade` | `api/facade.js` | `GOOGLE_MAPS_API_KEY` |
+| `/api/deanna/create-ministore` | `api/deanna/create-ministore.js` | `CREATE_MINISTORE_API_KEY` (+ `DEANNA_API_BASE` opc.) |
+| `/api/idealista` | `api/idealista.js` | `IDEALISTA_API_KEY` + `IDEALISTA_API_SECRET` (opc.; si no, mock) |
+| `/pvgis/*` | *rewrite* en `vercel.json` | — |
+
+Edificios (Catastro) van del **snapshot empaquetado**, sin red. `vercel.json` fija
+`framework: vite`, `outputDirectory: dist` y el rewrite de PVGIS.
+
+**Pasos:**
+1. Importa el repo en Vercel (detecta Vite + las funciones de `api/` solas).
+2. En **Settings → Environment Variables** añade las que uses:
+   ```
+   GOOGLE_MAPS_API_KEY        # foto de fachada (Street View)
+   CREATE_MINISTORE_API_KEY   # botón Crear MiniStore
+   DEANNA_API_BASE            # opc.; por defecto https://deanna.pro
+   IDEALISTA_API_KEY          # opc. (anuncios reales)
+   IDEALISTA_API_SECRET       # opc.
+   ```
+   (Sin prefijo `VITE_` → solo servidor. No hace falta `VITE_MAP_PUBLIC_BASE`: la
+   fachada usa el propio dominio de Vercel.)
+3. Deploy. El botón crea la MiniStore y la **fachada a pie de calle** aparece
+   (el dominio de Vercel es público, así que la URL de la imagen sí renderiza en
+   `deanna.pro`). deanna2u no se toca.
+
 ## Estructura
 
 ```
