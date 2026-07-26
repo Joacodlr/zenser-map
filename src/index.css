@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #f5f7fa;
+  color: #0c2233; /* Zenser navy */
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* MapLibre popup polish to match the reference (white card, thin border). */
+.maplibregl-popup-content {
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 6px 24px rgba(15, 27, 45, 0.16);
+  border: 1px solid rgba(15, 27, 45, 0.08);
+}
+.maplibregl-popup-close-button { display: none; }
