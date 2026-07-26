@@ -10,7 +10,7 @@
 const SV = "https://maps.googleapis.com/maps/api/streetview";
 const SV_META = "https://maps.googleapis.com/maps/api/streetview/metadata";
 
-export async function facadeCore({ lat, lng, meta, size, fov, key }) {
+export async function facadeCore({ lat, lng, meta, size, fov, pitch, key }) {
   if (!key) {
     return { status: 501, json: { error: "GOOGLE_MAPS_API_KEY not configured" } };
   }
@@ -34,8 +34,14 @@ export async function facadeCore({ lat, lng, meta, size, fov, key }) {
     }
 
     // 2. Fetch the actual Street View Static image (key stays server-side).
+    // Defaults are tuned to show the WHOLE facade, not just the doorway:
+    //   pitch ~22° tilts the camera up, fov 95 widens the vertical field, and a
+    //   640x640 (square) frame captures more building height than a landscape one.
+    // All three are overridable via query params (?pitch=&fov=&size=).
     const imgRes = await fetch(
-      `${SV}?size=${size || "640x420"}&location=${location}&fov=${fov || "80"}&source=outdoor&return_error_code=true&key=${key}`,
+      `${SV}?size=${size || "640x640"}&location=${location}` +
+        `&fov=${fov || "95"}&pitch=${pitch || "22"}` +
+        `&source=outdoor&return_error_code=true&key=${key}`,
     );
     if (!imgRes.ok) {
       return { status: 502, json: { error: `STREETVIEW_${imgRes.status}` } };

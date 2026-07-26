@@ -69,6 +69,7 @@ function facadeProxy(apiKey?: string): Plugin {
           meta: u.searchParams.get("meta") === "1",
           size: u.searchParams.get("size"),
           fov: u.searchParams.get("fov"),
+          pitch: u.searchParams.get("pitch"),
           key: apiKey,
         });
         res.statusCode = r.status;

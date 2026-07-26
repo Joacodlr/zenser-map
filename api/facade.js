@@ -14,6 +14,7 @@ export default async function handler(req, res) {
     meta: u.searchParams.get("meta") === "1",
     size: u.searchParams.get("size"),
     fov: u.searchParams.get("fov"),
+    pitch: u.searchParams.get("pitch"),
     key: process.env.GOOGLE_MAPS_API_KEY,
   });
 
