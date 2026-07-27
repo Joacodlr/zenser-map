@@ -3,13 +3,13 @@ import type {
   EnergyResult,
   SolarResult,
   ListingsResult,
-  Sourced,
 } from "@/types";
 import { buildingAerialImageUrl } from "./building-image";
 
-// Turns a building (all the data the app gathers) into a Deanna MiniStore:
-// one "book" whose clippings are the individual pieces of info. Posted through
-// the same-origin dev proxy (/api/deanna/create-ministore), which injects the
+// Turns a building into a Deanna MiniStore. Instead of one clipping per field,
+// the data is consolidated into THREE well-written paragraph clippings (Catastro,
+// Energía, Solar), plus the two building photos and two reference links. Posted
+// through the same-origin proxy (/api/deanna/create-ministore), which injects the
 // secret API key server-side — the key never touches the browser.
 
 type ClippingType = "webpage" | "image" | "video" | "text" | "product";
@@ -36,29 +36,9 @@ export interface MiniStoreResult {
   url: string;
 }
 
-// A single info clipping. Keeps provenance honest: the source + confidence ride
-// along in the text, exactly as the app shows them on screen.
-function infoClip<T>(
-  label: string,
-  s: Sourced<T> | undefined,
-  fmt?: (v: T) => string,
-): MiniStoreClipping | null {
-  if (!s || s.value == null) return null; // skip "No disponible" — only real data
-  const shown = fmt ? fmt(s.value) : String(s.value);
-  return {
-    type: "text",
-    caption: label,
-    text: `${label}: ${shown}\nFuente: ${s.source} · ${s.sourceType}`,
-  };
-}
-
-// A plain estimated/simulated value (not a Sourced<T> but our own calc/PVGIS).
-function calcClip(label: string, shown: string, source: string): MiniStoreClipping {
-  return { type: "text", caption: label, text: `${label}: ${shown}\nFuente: ${source}` };
-}
-
-const eur = (n: number) => `${Math.round(n).toLocaleString("es-ES")} €`;
-const kwh = (n: number) => `${Math.round(n).toLocaleString("es-ES")} kWh`;
+// Spanish number formatting (1.754,6 etc.).
+const nf = (n: number, dec = 0) =>
+  n.toLocaleString("es-ES", { maximumFractionDigits: dec });
 
 // Official Sede Catastro record link for a 14-char cadastral reference.
 function sedeCatastroUrl(ref: string | null): string | null {
@@ -66,6 +46,106 @@ function sedeCatastroUrl(ref: string | null): string | null {
   const rc1 = ref.slice(0, 7);
   const rc2 = ref.slice(7, 14);
   return `https://www1.sedecatastro.gob.es/CYCBienInmueble/OVCListaBienes.aspx?rc1=${rc1}&rc2=${rc2}`;
+}
+
+// --- One flowing paragraph with the official Catastro data (the "Resumen"). ----
+function catastroParagraph(d: BuildingDetails): MiniStoreClipping | null {
+  const parts: string[] = [];
+
+  const addr = d.address.value;
+  const muni = d.municipality.value;
+  const prov = d.province.value;
+  const loc = muni && prov ? `${muni} (provincia de ${prov})` : muni || prov || null;
+  if (addr) parts.push(`El edificio se ubica en ${addr}${loc ? `, en ${loc}` : ""}.`);
+  else if (loc) parts.push(`El edificio se ubica en ${loc}.`);
+
+  if (d.cadastralReference.value) {
+    parts.push(`Su referencia catastral es ${d.cadastralReference.value}.`);
+  }
+
+  const year = d.yearBuilt.value;
+  const floors = d.floors.value;
+  if (year && floors) {
+    parts.push(`Fue construido en ${year} y cuenta con ${floors} ${floors === 1 ? "planta" : "plantas"}.`);
+  } else if (year) {
+    parts.push(`Fue construido en ${year}.`);
+  } else if (floors) {
+    parts.push(`Cuenta con ${floors} ${floors === 1 ? "planta" : "plantas"}.`);
+  }
+
+  if (d.buildingType.value) parts.push(`Su uso principal es ${d.buildingType.value.toLowerCase()}.`);
+
+  const built = d.buildingAreaM2.value;
+  const foot = d.parcelAreaM2.value;
+  if (built && foot) {
+    parts.push(`Tiene una superficie construida de ${nf(built)} m² sobre una huella de ${nf(foot)} m².`);
+  } else if (built) {
+    parts.push(`Su superficie construida es de ${nf(built)} m².`);
+  } else if (foot) {
+    parts.push(`La huella del edificio es de ${nf(foot)} m².`);
+  }
+
+  const dw = d.dwellings.value;
+  if (dw && dw > 0) parts.push(`Consta de ${nf(dw)} ${dw === 1 ? "vivienda" : "viviendas"}.`);
+
+  if (!parts.length) return null;
+  parts.push("Datos oficiales de la Dirección General del Catastro.");
+  return { type: "text", caption: "Datos catastrales (oficial)", text: parts.join(" ") };
+}
+
+// --- One paragraph with the energy data (official certificate + estimate). -----
+function energyParagraph(e: EnergyResult | null): MiniStoreClipping | null {
+  if (!e) return null;
+  const parts: string[] = [];
+
+  if (e.certificate.available) {
+    const c = e.certificate;
+    const bits: string[] = [];
+    if (c.rating.value) bits.push(`calificación ${c.rating.value}`);
+    if (c.consumptionKwhM2Year.value != null) bits.push(`consumo ${nf(c.consumptionKwhM2Year.value)} kWh/m²·año`);
+    if (c.co2KgM2Year.value != null) bits.push(`emisiones ${nf(c.co2KgM2Year.value)} kg CO₂/m²·año`);
+    if (bits.length) parts.push(`Certificado energético oficial: ${bits.join(", ")}.`);
+  }
+
+  if (e.estimate) {
+    const est = e.estimate;
+    parts.push(
+      `Estimación energética propia (a partir de la superficie y el año de construcción; ` +
+        `no es un certificado oficial): consumo anual aproximado de ${nf(est.estimatedAnnualConsumptionKwh)} kWh ` +
+        `(~${nf(est.consumptionPerM2)} kWh/m²·año) y unas emisiones estimadas de ${nf(est.estimatedCo2Kg)} kg de CO₂ al año.`,
+    );
+  }
+
+  if (!parts.length) return null;
+  return { type: "text", caption: "Energía (estimación)", text: parts.join(" ") };
+}
+
+// --- One paragraph with the solar potential (our estimate + PVGIS). ------------
+function solarParagraph(s: SolarResult | null): MiniStoreClipping | null {
+  if (!s) return null;
+  const parts: string[] = [];
+  const p = s.panelEstimate;
+  parts.push(
+    `Potencial solar estimado: una instalación de unos ${nf(p.installedPowerKw, 1)} kWp ` +
+      `(${nf(p.panelCount)} paneles) sobre aproximadamente ${nf(p.usableAreaM2)} m² de cubierta útil.`,
+  );
+
+  if (s.production) {
+    parts.push(
+      `Produciría alrededor de ${nf(s.production.annualProductionKwh)} kWh al año ` +
+        `(irradiación de ${nf(s.production.annualIrradiationKwhM2)} kWh/m²·año, simulación con PVGIS).`,
+    );
+  }
+
+  if (s.savings) {
+    const sv = s.savings;
+    const clause = [`un ahorro anual estimado de ${nf(sv.annualSavings)} €`, `un beneficio anual de unos ${nf(sv.annualBenefit)} €`];
+    if (sv.paybackYears != null) clause.push(`una amortización aproximada de ${nf(sv.paybackYears, 1)} años`);
+    parts.push(`Supondría ${clause.join(", ")}.`);
+  }
+
+  parts.push("Estimaciones propias; producción simulada con PVGIS.");
+  return { type: "text", caption: "Solar (estimación · PVGIS)", text: parts.join(" ") };
 }
 
 export function assembleBuildingMiniStore(
@@ -76,6 +156,7 @@ export function assembleBuildingMiniStore(
   facadeUrl?: string | null,
 ): MiniStorePayload {
   const clippings: MiniStoreClipping[] = [];
+  const push = (c: MiniStoreClipping | null) => { if (c) clippings.push(c); };
 
   // --- Cover images: street-level facade first (if available), then aerial -----
   if (facadeUrl) {
@@ -91,7 +172,7 @@ export function assembleBuildingMiniStore(
     image: buildingAerialImageUrl(details.centroid, details.geometry),
   });
 
-  // --- Location + official record links (genuinely useful, not invented) ------
+  // --- Location + official record links --------------------------------------
   clippings.push({
     type: "webpage",
     caption: "Ubicación en el mapa",
@@ -102,63 +183,13 @@ export function assembleBuildingMiniStore(
     clippings.push({ type: "webpage", caption: "Ficha oficial (Sede Catastro)", url: sede });
   }
 
-  // --- Resumen / Inmueble (Catastro) -----------------------------------------
-  const push = (c: MiniStoreClipping | null) => { if (c) clippings.push(c); };
-  push(infoClip("Dirección", details.address));
-  push(infoClip("Municipio", details.municipality));
-  push(infoClip("Provincia", details.province));
-  push(infoClip("Referencia catastral", details.cadastralReference));
-  push(infoClip("Superficie construida", details.buildingAreaM2, (v) => `${v.toLocaleString("es-ES")} m²`));
-  push(infoClip("Superficie de la huella", details.parcelAreaM2, (v) => `${v.toLocaleString("es-ES")} m²`));
-  push(infoClip("Año de construcción", details.yearBuilt));
-  push(infoClip("Plantas", details.floors));
-  push(infoClip("Viviendas", details.dwellings));
-  push(infoClip("Uso / tipo", details.buildingType));
+  // --- Three consolidated paragraphs ------------------------------------------
+  push(catastroParagraph(details));
+  push(energyParagraph(energy));
+  push(solarParagraph(solar));
 
-  // --- Energía ----------------------------------------------------------------
-  if (energy?.certificate.available) {
-    push(infoClip("Calificación energética", energy.certificate.rating));
-    push(infoClip("Consumo (certificado)", energy.certificate.consumptionKwhM2Year, (v) => `${v} kWh/m²·año`));
-    push(infoClip("Emisiones (certificado)", energy.certificate.co2KgM2Year, (v) => `${v} kg CO₂/m²·año`));
-  }
-  if (energy?.estimate) {
-    const e = energy.estimate;
-    clippings.push(calcClip("Consumo anual estimado", kwh(e.estimatedAnnualConsumptionKwh), "Estimación propia · ESTIMATED"));
-    clippings.push(calcClip("Consumo por m² (estimado)", `${e.consumptionPerM2} kWh/m²·año`, "Estimación propia · ESTIMATED"));
-    clippings.push(calcClip("CO₂ anual estimado", `${e.estimatedCo2Kg.toLocaleString("es-ES")} kg/año`, "Estimación propia · ESTIMATED"));
-  }
-
-  // --- Solar ------------------------------------------------------------------
-  if (solar) {
-    const p = solar.panelEstimate;
-    clippings.push(calcClip("Potencia solar instalable", `${p.installedPowerKw} kWp (${p.panelCount} paneles)`, "Estimación propia · ESTIMATED"));
-    clippings.push(calcClip("Área útil de cubierta", `${p.usableAreaM2.toLocaleString("es-ES")} m²`, "Estimación propia · ESTIMATED"));
-    if (solar.production) {
-      clippings.push(calcClip("Producción solar anual", kwh(solar.production.annualProductionKwh), `${solar.production.source} · ${solar.production.sourceType}`));
-      clippings.push(calcClip("Irradiación anual", `${solar.production.annualIrradiationKwhM2.toLocaleString("es-ES")} kWh/m²`, `${solar.production.source} · ${solar.production.sourceType}`));
-    }
-    if (solar.savings) {
-      clippings.push(calcClip("Ahorro anual estimado", eur(solar.savings.annualSavings), "Estimación propia · ESTIMATED"));
-      clippings.push(calcClip("Beneficio anual estimado", eur(solar.savings.annualBenefit), "Estimación propia · ESTIMATED"));
-      if (solar.savings.paybackYears != null) {
-        clippings.push(calcClip("Amortización estimada", `${solar.savings.paybackYears} años`, "Estimación propia · ESTIMATED"));
-      }
-    }
-  }
-
-  // --- Anuncios ---------------------------------------------------------------
+  // Real in-building listings (with a link) become product cards; mock/empty skipped.
   if (listings) {
-    const total = listings.inBuilding.length + listings.nearby.length;
-    if (total > 0) {
-      clippings.push(
-        calcClip(
-          "Anuncios",
-          `${listings.inBuilding.length} en el edificio · ${listings.nearby.length} cercanos`,
-          `${listings.source} · ${listings.sourceType}`,
-        ),
-      );
-    }
-    // Each real in-building listing with a link becomes its own product clipping.
     for (const l of listings.inBuilding) {
       if (!l.url) continue;
       const bits = [l.propertyType, l.sizeM2 ? `${l.sizeM2} m²` : null, l.operation === "rent" ? "alquiler" : "venta"]
@@ -166,7 +197,7 @@ export function assembleBuildingMiniStore(
         .join(" · ");
       clippings.push({
         type: "product",
-        caption: `${bits || "Anuncio"} — ${l.price.toLocaleString("es-ES")} €`,
+        caption: `${bits || "Anuncio"} — ${nf(l.price)} €`,
         url: l.url,
         price: String(l.price),
       });
