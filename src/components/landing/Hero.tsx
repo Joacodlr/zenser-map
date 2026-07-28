@@ -1,4 +1,5 @@
 import { RotatingHeadline } from "./RotatingHeadline";
+import heroAerial from "@/assets/hero-aerial.jpg";
 
 // Branded Zenser landing hero shown above the map. Navy backdrop with the green
 // accent + logo, a rotating value line (à la Zenser's slider), floating brand
@@ -12,10 +13,21 @@ const HEADLINES = [
 export function Hero({ onExplore }: { onExplore: () => void }) {
   return (
     <section className="relative isolate overflow-hidden bg-zen-navy">
-      {/* Decorative, gently floating brand shapes (no fabricated imagery). */}
+      {/* Real IGN aerial of Barrio de Ibiza, slowly zooming, darkened for legibility. */}
+      <img
+        src={heroAerial}
+        alt=""
+        aria-hidden
+        className="animate-slow-zoom absolute inset-0 -z-10 h-full w-full object-cover motion-reduce:animate-none"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-gradient-to-b from-zen-navy/92 via-zen-navy/80 to-zen-navy/95"
+      />
+
+      {/* Decorative, gently floating brand shapes. */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="animate-float-slow absolute -right-32 -top-32 h-96 w-96 rounded-full border-2 border-zen-green/20" />
-        <div className="animate-float absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-zen-green/10 blur-3xl" />
         <div className="animate-float absolute right-[22%] top-16 h-2.5 w-2.5 rounded-full bg-zen-green" />
         <div className="animate-float-slow absolute left-[18%] bottom-24 h-1.5 w-1.5 rounded-full bg-white/40" />
       </div>

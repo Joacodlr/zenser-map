@@ -32,11 +32,16 @@ const config: Config = {
           "0%,100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-16px)" },
         },
+        "slow-zoom": {
+          "0%": { transform: "scale(1)" },
+          "100%": { transform: "scale(1.09)" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.7s ease-out both",
         float: "float 7s ease-in-out infinite",
         "float-slow": "float 11s ease-in-out infinite",
+        "slow-zoom": "slow-zoom 26s ease-in-out infinite alternate",
       },
     },
   },
