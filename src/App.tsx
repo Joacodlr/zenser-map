@@ -3,6 +3,7 @@ import { BuildingMap, type Selection } from "@/components/map/BuildingMap";
 import { BuildingDetailsPanel } from "@/components/building/BuildingDetailsPanel";
 import { Hero } from "@/components/landing/Hero";
 import { StatsBand } from "@/components/landing/StatsBand";
+import { Showcase } from "@/components/landing/Showcase";
 import { DEMO_MODE } from "@/lib/config";
 
 export default function App() {
@@ -47,6 +48,9 @@ export default function App() {
       {/* Animated stats (real Catastro-snapshot numbers) */}
       <StatsBand />
 
+      {/* Showcase — real MiniStores this app creates */}
+      <Showcase />
+
       {/* Intro line */}
       <section className="mx-auto max-w-3xl px-6 py-12 text-center sm:py-16">
         <h2 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
@@ -58,20 +62,22 @@ export default function App() {
         </p>
       </section>
 
-      {/* The map — unchanged capabilities, just placed below the landing. */}
-      <section id="mapa" className="scroll-mt-16 border-t border-slate-200">
-        <div className="flex h-[88vh] min-h-[520px] flex-col sm:flex-row">
-          <div className="relative min-h-0 flex-1">
-            <BuildingMap selected={selection} onSelect={setSelection} />
-          </div>
-          {selection && (
-            <div className="h-[55%] sm:h-auto">
-              <BuildingDetailsPanel
-                selection={selection}
-                onClose={() => setSelection(null)}
-              />
+      {/* The map — framed in a contained card (not full-bleed), all capabilities kept. */}
+      <section id="mapa" className="scroll-mt-16 bg-slate-50 px-4 py-10 sm:px-6 sm:py-14">
+        <div className="mx-auto max-w-7xl overflow-hidden rounded-2xl border border-slate-200 shadow-xl">
+          <div className="flex h-[80vh] min-h-[520px] flex-col bg-white sm:flex-row">
+            <div className="relative min-h-0 flex-1">
+              <BuildingMap selected={selection} onSelect={setSelection} />
             </div>
-          )}
+            {selection && (
+              <div className="h-[55%] sm:h-auto">
+                <BuildingDetailsPanel
+                  selection={selection}
+                  onClose={() => setSelection(null)}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

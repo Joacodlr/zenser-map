@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { Selection } from "@/components/map/BuildingMap";
 import { BuildingSummary } from "./BuildingSummary";
 import { BuildingProperty } from "./BuildingProperty";
-import { BuildingListings } from "./BuildingListings";
 import { BuildingEnergy } from "./BuildingEnergy";
 import { BuildingSolar } from "./BuildingSolar";
 
@@ -11,7 +10,6 @@ const TABS = [
   { id: "property", label: "Inmueble" },
   { id: "energy", label: "Energía" },
   { id: "solar", label: "Solar" },
-  { id: "listings", label: "Anuncios" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -64,7 +62,6 @@ export function BuildingDetailsPanel({
         {tab === "property" && <BuildingProperty sel={selection} />}
         {tab === "energy" && <BuildingEnergy sel={selection} />}
         {tab === "solar" && <BuildingSolar sel={selection} />}
-        {tab === "listings" && <BuildingListings sel={selection} />}
       </div>
     </aside>
   );
